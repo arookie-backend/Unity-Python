@@ -1,8 +1,10 @@
-import flet as ft
 import cv2
 import mediapipe as mp
 import threading
 import time
+from flask import Flask, jsonify
+
+app = Flask(__name__)
 
 class GestureDetector:
     def __init__(self):
@@ -36,14 +38,13 @@ class GestureDetector:
 
         return "none"
 
-    def start_continuous_detection(self, update_callback):
+    def start_continuous_detection(self):
         self.running = True
         def detection_thread():
             while self.running:
                 gesture = self.detect_gesture()
                 if gesture != self.current_gesture:
                     self.current_gesture = gesture
-                    update_callback(gesture)
                 time.sleep(0.1)  # Reduce CPU usage
 
         threading.Thread(target=detection_thread, daemon=True).start()
@@ -52,45 +53,22 @@ class GestureDetector:
         self.running = False
         self.cap.release()
 
-def main(page: ft.Page):
-    page.title = "Gesture Recognition"
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+# Initialize the gesture detector
+gesture_detector = GestureDetector()
 
-    gesture_detector = GestureDetector()
-    
-    # UI Components
-    gesture_text = ft.Text(value="Current Gesture: None", size=20)
-    start_button = ft.ElevatedButton(text="Start Detection")
-    stop_button = ft.ElevatedButton(text="Stop Detection", visible=False)
+@app.route('/gesture', methods=['GET'])
+def get_gesture():
+    return jsonify({'gesture': gesture_detector.current_gesture})
 
-    def update_gesture(gesture):
-        gesture_text.value = f"Current Gesture: {gesture}"
-        page.update()
+@app.route('/start_detection', methods=['GET'])
+def start_detection():
+    gesture_detector.start_continuous_detection()
+    return jsonify({'status': 'Gesture detection started'})
 
-    def start_detection(e):
-        gesture_detector.start_continuous_detection(update_gesture)
-        start_button.visible = False
-        stop_button.visible = True
-        page.update()
+@app.route('/stop_detection', methods=['GET'])
+def stop_detection():
+    gesture_detector.stop_detection()
+    return jsonify({'status': 'Gesture detection stopped'})
 
-    def stop_detection(e):
-        gesture_detector.stop_detection()
-        start_button.visible = True
-        stop_button.visible = False
-        gesture_text.value = "Current Gesture: None"
-        page.update()
-
-    start_button.on_click = start_detection
-    stop_button.on_click = stop_detection
-
-    # Add controls to the page
-    page.add(
-        gesture_text,
-        ft.Row([start_button, stop_button], alignment=ft.MainAxisAlignment.CENTER)
-    )
-
-    # Cleanup on window close
-    page.on_close = lambda _: gesture_detector.stop_detection()
-
-# Run the Flet app
-ft.app(target=main)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)

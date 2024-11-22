@@ -1,4 +1,4 @@
-from flask import Flask, Response
+from flask import Flask, Response, request, jsonify
 import cv2
 import mediapipe as mp
 
@@ -12,6 +12,7 @@ mp_drawing = mp.solutions.drawing_utils
 # Initialize the video capture object
 video_capture = cv2.VideoCapture(0)  # Use 0 for the default camera
 
+# Function to generate video frames
 def generate_frames():
     while True:
         success, frame = video_capture.read()  # Read the frame from the camera
@@ -37,13 +38,15 @@ def generate_frames():
 
 @app.route('/video_feed')
 def video_feed():
+    # Stream video frames to the frontend
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/control_game', methods=['POST'])
 def control_game():
     command = request.json.get('command')
-    # Process the command to control the game
-    # For example, you can send commands to Unity via WebSocket or other means
+    # Example to process the command and send it to Unity
+    # In production, integrate WebSocket or HTTP communication to Unity
+    print(f"Received command: {command}")
     return jsonify({"status": "success", "command": command})
 
 if __name__ == '__main__':
